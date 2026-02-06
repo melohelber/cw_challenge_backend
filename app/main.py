@@ -6,7 +6,7 @@ from app.config import settings
 from app.utils.logging import setup_logging, mask_api_key
 from app.core.database import create_tables
 from app.models.database import User, Conversation
-from app.api.routes import auth
+from app.api.routes import auth, chat
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(chat.router)
 
 
 @app.get("/")
