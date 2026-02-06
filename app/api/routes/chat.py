@@ -27,7 +27,14 @@ async def chat_endpoint(
             db=db
         )
 
-        return ChatResponse(**result)
+        logger.info(
+            f"Response sent | user_id={current_user_id} | "
+            f"agent_used={result['agent_used']} | "
+            f"confidence={result.get('confidence')} | "
+            f"response_length={len(result['response'])}"
+        )
+
+        return ChatResponse(response=result["response"])
 
     except Exception as e:
         logger.error(f"Error processing chat message: {str(e)}")

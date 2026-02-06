@@ -8,6 +8,3 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str = Field(..., description="Agent response")
-    agent_used: str = Field(..., description="Which agent processed the message")
-    confidence: Optional[float] = Field(None, description="Routing confidence score")
-    metadata: Optional[dict] = Field(default_factory=dict, description="Additional metadata")
