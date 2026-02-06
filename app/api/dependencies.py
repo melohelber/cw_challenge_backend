@@ -2,6 +2,7 @@ import logging
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.security import decode_access_token
+from app.core.database import get_db
 
 logger = logging.getLogger(__name__)
 

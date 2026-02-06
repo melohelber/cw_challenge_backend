@@ -6,7 +6,7 @@ from chromadb.utils import embedding_functions
 logger = logging.getLogger(__name__)
 
 
-class VectorStore:
+class VectorStoreService:
     def __init__(self, collection_name: str = "infinitepay_knowledge"):
         self.collection_name = collection_name
         self.client = chromadb.PersistentClient(path="./data/vectorstore")
