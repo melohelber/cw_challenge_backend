@@ -4,6 +4,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain.prompts import ChatPromptTemplate
 from app.core.agents.base import BaseAgent, AgentResponse
 from app.config import settings
+from app.utils.logging import sanitize_message_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,17 @@ Analyze the user's message and classify it into ONE of these categories:
    - "Show my transaction history"
    - "Is my account blocked?"
 
-3. GENERAL - Off-topic questions not related to InfinitePay or payments
+3. ESCALATE - User explicitly wants to talk to a human agent or open a support ticket
+   Examples:
+   - "I want to talk to a human"
+   - "Speak with a support agent"
+   - "Open a ticket"
+   - "Escalate this issue"
+   - "I need urgent help"
+   - "Connect me to technical support"
+   - "Let me talk to someone"
+
+4. GENERAL - Off-topic questions not related to InfinitePay or payments
    Examples:
    - "What's the weather?"
    - "Who won the game?"
@@ -37,7 +48,7 @@ Analyze the user's message and classify it into ONE of these categories:
 
 User message: {message}
 
-Respond with ONLY ONE WORD: KNOWLEDGE, SUPPORT, or GENERAL
+Respond with ONLY ONE WORD: KNOWLEDGE, SUPPORT, ESCALATE, or GENERAL
 
 Your response:"""
 
@@ -46,7 +57,7 @@ class RouterAgent(BaseAgent):
     def __init__(self):
         super().__init__(name="router")
         self.llm = ChatAnthropic(
-            model="claude-3-5-sonnet-20241022",
+            model=settings.ANTHROPIC_MODEL,
             api_key=settings.ANTHROPIC_API_KEY,
             temperature=0.0,
             max_tokens=10
@@ -55,13 +66,13 @@ class RouterAgent(BaseAgent):
         self.chain = self.prompt | self.llm
 
     async def process(self, message: str, user_id: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
-        self.logger.info(f"Routing message for user {user_id}: {message[:100]}...")
+        self.logger.info(f"Routing message for user {user_id}: {sanitize_message_for_log(message, 100)}")
 
         try:
             result = await self.chain.ainvoke({"message": message})
             route = result.content.strip().upper()
 
-            if route not in ["KNOWLEDGE", "SUPPORT", "GENERAL"]:
+            if route not in ["KNOWLEDGE", "SUPPORT", "ESCALATE", "GENERAL"]:
                 self.logger.warning(f"Invalid route returned: {route}, defaulting to GENERAL")
                 route = "GENERAL"
 

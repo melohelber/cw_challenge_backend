@@ -1,13 +1,13 @@
 import logging
 from typing import List, Dict, Optional
-from app.services.vector_store import VectorStore
+from app.services.vector_store import VectorStoreService
 
 logger = logging.getLogger(__name__)
 
 
 class RetrievalService:
-    def __init__(self, vector_store: Optional[VectorStore] = None):
-        self.vector_store = vector_store or VectorStore()
+    def __init__(self, vector_store: Optional[VectorStoreService] = None):
+        self.vector_store = vector_store or VectorStoreService()
 
     def retrieve(self, query: str, top_k: int = 5, min_score: float = 0.5) -> Dict[str, any]:
         logger.info(f"Retrieving documents for query: '{query[:50]}...'")

@@ -10,7 +10,7 @@ import logging
 from app.utils.logging import setup_logging
 from app.services.web_scraper import WebScraper
 from app.services.text_chunker import TextChunker
-from app.services.vector_store import VectorStore
+from app.services.vector_store import VectorStoreService
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def main():
     logger.info(f"Created {len(all_chunks)} chunks total")
 
     logger.info("\nStep 3: Populating vector store...")
-    vector_store = VectorStore()
+    vector_store = VectorStoreService()
 
     existing_count = vector_store.count()
     if existing_count > 0:

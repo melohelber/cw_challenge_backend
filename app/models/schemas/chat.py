@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 class ChatRequest(BaseModel):
@@ -8,3 +8,6 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str = Field(..., description="Agent response")
+    agent_used: Optional[str] = Field(None, description="Agent that processed the message")
+    confidence: Optional[str] = Field(None, description="Router confidence level")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")

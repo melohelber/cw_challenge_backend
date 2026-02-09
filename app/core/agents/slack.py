@@ -1,9 +1,11 @@
 import logging
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.core.agents.base import BaseAgent, AgentResponse
 
 logger = logging.getLogger(__name__)
+
+recent_escalations = {}
 
 
 ESCALATION_REASONS = {
@@ -22,6 +24,34 @@ class SlackAgent(BaseAgent):
         self.escalation_channel = "#support-escalations"
 
     async def process(self, message: str, user_id: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
+        global recent_escalations
+
+        now = datetime.now()
+        cooldown_minutes = 5
+
+        if user_id in recent_escalations:
+            last_escalation = recent_escalations[user_id]
+            time_since_last = now - last_escalation["timestamp"]
+
+            if time_since_last < timedelta(minutes=cooldown_minutes):
+                self.logger.info(f"User {user_id} already has recent ticket: {last_escalation['ticket_id']}")
+                response = f"""Sua chamada já foi enviada para nossa equipe de suporte.
+
+📋 **Número do ticket:** {last_escalation['ticket_id']}
+⏱️ **Tempo estimado de resposta:** 2 - 3 minutos
+
+Nossa equipe entrará em contato em breve. Por favor, aguarde um momento."""
+
+                return self._create_success_response(
+                    response=response,
+                    metadata={
+                        "escalated": False,
+                        "duplicate_prevented": True,
+                        "original_ticket_id": last_escalation["ticket_id"],
+                        "time_since_last": str(time_since_last)
+                    }
+                )
+
         escalation_reason = context.get("reason", "complex_issue") if context else "complex_issue"
         reason_description = ESCALATION_REASONS.get(escalation_reason, "Unknown reason")
 
@@ -33,6 +63,19 @@ class SlackAgent(BaseAgent):
         )
 
         ticket_id = self._generate_ticket_id(user_id)
+
+        recent_escalations[user_id] = {
+            "ticket_id": ticket_id,
+            "timestamp": now
+        }
+
+        if len(recent_escalations) > 1000:
+            cutoff_time = now - timedelta(hours=24)
+            recent_escalations = {
+                uid: data for uid, data in recent_escalations.items()
+                if data["timestamp"] > cutoff_time
+            }
+            self.logger.info("Cleaned up old escalations from cache")
 
         slack_message = self._format_slack_message(
             user_id=user_id,
@@ -88,6 +131,6 @@ _Escalated by: CloudWalk Agent Swarm_
         return f"""Entendi sua solicitação. Para garantir o melhor atendimento, estou encaminhando seu caso para nossa equipe de suporte especializada.
 
 📋 **Número do ticket:** {ticket_id}
-⏱️ **Tempo estimado de resposta:** 1-2 horas
+⏱️ **Tempo estimado de resposta:** 2 - 3 minutos
 
 Nossa equipe entrará em contato em breve. Obrigado pela paciência!"""

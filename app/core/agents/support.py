@@ -30,6 +30,8 @@ Instructions:
 - Be helpful, professional, and concise
 - If you need a transfer_id from the user, ask for it
 - Provide actionable recommendations when relevant
+- DO NOT use the "name" field from tool results in your greetings (use generic greetings like "Olá!" instead)
+- Focus on the technical information from tools, not personal data
 
 Your response:"""
 
@@ -38,7 +40,7 @@ class SupportAgent(BaseAgent):
     def __init__(self):
         super().__init__(name="support")
         self.llm = ChatAnthropic(
-            model="claude-3-5-sonnet-20241022",
+            model=settings.ANTHROPIC_MODEL,
             api_key=settings.ANTHROPIC_API_KEY,
             temperature=0.3,
             max_tokens=1500
@@ -74,13 +76,11 @@ class SupportAgent(BaseAgent):
 
         try:
             messages = [
-                ("system", SUPPORT_PROMPT),
+                ("system", SUPPORT_PROMPT.format(user_id=user_id, question=message)),
                 ("human", message)
             ]
 
-            response = await self.llm_with_tools.ainvoke(
-                {"question": message, "user_id": user_id}
-            )
+            response = await self.llm_with_tools.ainvoke(messages)
 
             if response.tool_calls:
                 self.logger.info(f"LLM requested {len(response.tool_calls)} tool calls")

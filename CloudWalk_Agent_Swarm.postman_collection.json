@@ -21,11 +21,13 @@
 			"script": {
 				"type": "text/javascript",
 				"exec": [
-					"const loginUrl = pm.environment.get('base_url') + '/auth/login';",
-					"const username = pm.environment.get('test_username') || 'test';",
-					"const password = pm.environment.get('test_password') || 'test123';",
+					"const baseUrl = pm.variables.get('base_url') || 'http://localhost:8000';",
+					"const loginUrl = baseUrl + '/auth/login';",
+					"const username = pm.variables.get('test_username') || 'test';",
+					"const password = pm.variables.get('test_password') || 'test123';",
 					"",
 					"if (!pm.globals.get('jwt_token') || !pm.globals.get('token_expiry') || Date.now() > pm.globals.get('token_expiry')) {",
+					"    console.log('Requesting new JWT token from', loginUrl);",
 					"    pm.sendRequest({",
 					"        url: loginUrl,",
 					"        method: 'POST',",
@@ -49,6 +51,8 @@
 					"            console.log('JWT token refreshed successfully');",
 					"        }",
 					"    });",
+					"} else {",
+					"    console.log('Using existing JWT token (expires in', Math.floor((pm.globals.get('token_expiry') - Date.now()) / 1000), 'seconds)');",
 					"}"
 				]
 			}

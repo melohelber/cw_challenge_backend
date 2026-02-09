@@ -6,10 +6,10 @@ sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app.services.vector_store import VectorStore
+from app.services.vector_store import VectorStoreService
 
 def main():
-    vs = VectorStore()
+    vs = VectorStoreService()
 
     print('=' * 60)
     print('RAG DATABASE - InfinitePay Knowledge Base')

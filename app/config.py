@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     )
 
     ANTHROPIC_API_KEY: str
+    ANTHROPIC_MODEL: str = "claude-haiku-4-5-20251001"
     TAVILY_API_KEY: str
     SECRET_KEY: str
 

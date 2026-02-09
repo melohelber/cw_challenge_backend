@@ -87,7 +87,11 @@ MOCKED_TRANSACTIONS = {
 def transaction_history(user_id: str, limit: int = 5) -> Dict[str, any]:
     logger.info(f"Tool [transaction_history] called with user_id={user_id}, limit={limit}")
 
-    transactions = MOCKED_TRANSACTIONS.get(user_id, [])
+    transactions = MOCKED_TRANSACTIONS.get(user_id)
+
+    if transactions is None:
+        logger.info(f"Tool [transaction_history] using default mock data for user: {user_id}")
+        transactions = MOCKED_TRANSACTIONS.get("user_test", [])
 
     if not transactions:
         logger.warning(f"Tool [transaction_history] no transactions found for user: {user_id}")

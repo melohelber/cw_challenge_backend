@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.agents import RouterAgent, KnowledgeAgent, SupportAgent, SlackAgent
 from app.services.guardrails import GuardrailsService
 from app.models.database.conversation import Conversation
+from app.utils.logging import sanitize_message_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class AgentOrchestrator:
         self.slack = SlackAgent()
 
     async def process_message(self, message: str, user_id: str, db: Session) -> Dict[str, Any]:
-        logger.info(f"Processing message for user {user_id}: {message[:100]}...")
+        logger.info(f"Processing message for user {user_id}: {sanitize_message_for_log(message, 100)}")
 
         guardrail_result = self.guardrails.check(message)
         if not guardrail_result.allowed:
@@ -50,29 +51,44 @@ class AgentOrchestrator:
         target_route = routing_result.response
         logger.info(f"Routed to: {target_route}")
 
-        target_agent = self.agents.get(target_route)
-        if not target_agent:
-            logger.error(f"Unknown route: {target_route}")
-            target_agent = self.agents["GENERAL"]
-
-        agent_result = await target_agent.process(message, user_id)
-
-        if not agent_result.success:
-            logger.error(f"Agent {target_route} failed: {agent_result.error}")
-
+        if target_route == "ESCALATE":
+            logger.info("User requested escalation, calling Slack Agent directly")
             escalation_result = await self.slack.process(
                 message,
                 user_id,
-                context={"reason": "technical_failure", "original_error": agent_result.error}
+                context={"reason": "user_request"}
             )
-
             response_text = escalation_result.response
             agent_used = "slack_escalation"
             metadata = escalation_result.metadata
         else:
-            response_text = agent_result.response
-            agent_used = target_route.lower()
-            metadata = agent_result.metadata or {}
+            target_agent = self.agents.get(target_route)
+            if not target_agent:
+                logger.error(f"Unknown route: {target_route}")
+                target_agent = self.agents["GENERAL"]
+
+            agent_result = await target_agent.process(
+                message,
+                user_id,
+                context={"route": target_route}
+            )
+
+            if not agent_result.success:
+                logger.error(f"Agent {target_route} failed: {agent_result.error}")
+
+                escalation_result = await self.slack.process(
+                    message,
+                    user_id,
+                    context={"reason": "technical_failure", "original_error": agent_result.error}
+                )
+
+                response_text = escalation_result.response
+                agent_used = "slack_escalation"
+                metadata = escalation_result.metadata
+            else:
+                response_text = agent_result.response
+                agent_used = target_route.lower()
+                metadata = agent_result.metadata or {}
 
         self._save_conversation(
             db=db,

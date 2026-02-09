@@ -60,12 +60,10 @@ def user_lookup(user_id: str) -> Dict[str, any]:
     user_data = MOCKED_USERS.get(user_id)
 
     if not user_data:
-        logger.warning(f"Tool [user_lookup] user not found: {user_id}")
-        return {
-            "user_id": user_id,
-            "found": False,
-            "error": "User not found"
-        }
+        logger.info(f"Tool [user_lookup] using default mock data for user: {user_id}")
+        user_data = MOCKED_USERS.get("user_test", {}).copy()
+        if user_data:
+            user_data["user_id"] = user_id
 
     logger.info(f"Tool [user_lookup] returned data for user: {user_data['name']}")
     return {

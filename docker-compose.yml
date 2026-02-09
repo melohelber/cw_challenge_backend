@@ -24,5 +24,19 @@ services:
       retries: 3
       start_period: 40s
 
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: connectors/Dockerfile
+    container_name: cloudwalk_telegram_bot
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - BACKEND_URL=http://backend:8000
+    restart: unless-stopped
+
 volumes:
   data:

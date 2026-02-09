@@ -38,8 +38,9 @@ sentence-transformers>=2.2.2
 tavily-python==0.3.0
 beautifulsoup4==4.12.3
 
-# HTTP Client
-httpx==0.26.0
+# HTTP Client (0.25.2 required by python-telegram-bot)
+httpx==0.25.2
+requests==2.31.0
 
 # Environment Variables
 python-dotenv==1.0.0
@@ -55,5 +56,5 @@ black==24.1.1
 flake8==7.0.0
 mypy==1.8.0
 
-# Telegram Bot (Optional - will be installed in Phase 9)
-# python-telegram-bot==20.7
+# Telegram Bot (Phase 7)
+python-telegram-bot==20.7

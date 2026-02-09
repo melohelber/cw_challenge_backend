@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_db, get_current_user_id
 from app.models.schemas.chat import ChatRequest, ChatResponse
 from app.core.orchestrator import AgentOrchestrator
+from app.utils.logging import sanitize_message_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ async def chat_endpoint(
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    logger.info(f"Chat request from user {current_user_id}: {request.message[:50]}...")
+    logger.info(f"Chat request from user {current_user_id}: {sanitize_message_for_log(request.message, 50)}")
 
     try:
         result = await orchestrator.process_message(
@@ -34,7 +35,12 @@ async def chat_endpoint(
             f"response_length={len(result['response'])}"
         )
 
-        return ChatResponse(response=result["response"])
+        return ChatResponse(
+            response=result["response"],
+            agent_used=result.get("agent_used"),
+            confidence=result.get("confidence"),
+            metadata=result.get("metadata")
+        )
 
     except Exception as e:
         logger.error(f"Error processing chat message: {str(e)}")
