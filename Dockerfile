@@ -7,10 +7,12 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements-prod.txt .
 
+# Install PyTorch CPU-only FIRST (saves ~2GB vs default CUDA build)
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --user -r requirements.txt
+    pip install --no-cache-dir --user torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir --user -r requirements-prod.txt
 
 FROM python:3.11-slim
 
