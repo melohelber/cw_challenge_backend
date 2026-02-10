@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List
 from datetime import datetime, timedelta
+from app.utils.logging import mask_user_key
 
 logger = logging.getLogger(__name__)
 
@@ -84,19 +85,20 @@ MOCKED_TRANSACTIONS = {
 }
 
 
-def transaction_history(user_id: str, limit: int = 5) -> Dict[str, any]:
-    logger.info(f"Tool [transaction_history] called with user_id={user_id}, limit={limit}")
+def transaction_history(user_key: str, limit: int = 5) -> Dict[str, any]:
+    logger.info(f"Tool [transaction_history] called with user_key={mask_user_key(user_key)}, limit={limit}")
 
-    transactions = MOCKED_TRANSACTIONS.get(user_id)
+    # For mocked data, still use user_key to lookup
+    transactions = MOCKED_TRANSACTIONS.get(user_key)
 
     if transactions is None:
-        logger.info(f"Tool [transaction_history] using default mock data for user: {user_id}")
+        logger.info(f"Tool [transaction_history] using default mock data for user: {mask_user_key(user_key)}")
         transactions = MOCKED_TRANSACTIONS.get("user_test", [])
 
     if not transactions:
-        logger.warning(f"Tool [transaction_history] no transactions found for user: {user_id}")
+        logger.warning(f"Tool [transaction_history] no transactions found for user: {mask_user_key(user_key)}")
         return {
-            "user_id": user_id,
+            "user_key": user_key,
             "transactions": [],
             "total_count": 0,
             "message": "No transactions found"
@@ -105,10 +107,10 @@ def transaction_history(user_id: str, limit: int = 5) -> Dict[str, any]:
     limited_transactions = transactions[:limit]
     total_amount = sum(tx["amount"] for tx in limited_transactions)
 
-    logger.info(f"Tool [transaction_history] returned {len(limited_transactions)} transactions for user: {user_id}")
+    logger.info(f"Tool [transaction_history] returned {len(limited_transactions)} transactions for user: {mask_user_key(user_key)}")
 
     return {
-        "user_id": user_id,
+        "user_key": user_key,
         "transactions": limited_transactions,
         "total_count": len(transactions),
         "returned_count": len(limited_transactions),
@@ -131,6 +133,6 @@ def get_transaction_history_description() -> str:
     - "Transaction history"
     - "Show my last 5 payments"
 
-    Input: user_id (string), limit (int, optional, default=5)
+    Input: user_key (string - UUID), limit (int, optional, default=5)
     Output: List of recent transactions with amounts, dates, merchants
     """

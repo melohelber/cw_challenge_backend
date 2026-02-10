@@ -4,7 +4,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain.prompts import ChatPromptTemplate
 from app.core.agents.base import BaseAgent, AgentResponse
 from app.config import settings
-from app.utils.logging import sanitize_message_for_log
+from app.utils.logging import sanitize_message_for_log, mask_user_key
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +65,8 @@ class RouterAgent(BaseAgent):
         self.prompt = ChatPromptTemplate.from_template(ROUTING_PROMPT)
         self.chain = self.prompt | self.llm
 
-    async def process(self, message: str, user_id: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
-        self.logger.info(f"Routing message for user {user_id}: {sanitize_message_for_log(message, 100)}")
+    async def process(self, message: str, user_key: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
+        self.logger.info(f"Routing message for user {mask_user_key(user_key)}: {sanitize_message_for_log(message, 100)}")
 
         try:
             result = await self.chain.ainvoke({"message": message})

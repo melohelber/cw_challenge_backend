@@ -67,3 +67,16 @@ def sanitize_message_for_log(message: str, max_length: int = 100) -> str:
     if len(clean_message) > max_length:
         return f"{clean_message[:max_length]}..."
     return clean_message
+
+
+def mask_user_key(user_key: str) -> str:
+    """
+    Mask UUID for logging: abc12345-1234-4567... → abc123***
+    Shows first 6 chars only for debugging while hiding full UUID.
+
+    Example:
+        "a1b2c3d4-1234-4567-89ab-cdef01234567" → "a1b2c3***"
+    """
+    if not user_key or len(user_key) < 12:
+        return "***"
+    return f"{user_key[:6]}***"

@@ -225,29 +225,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = update.message.text
     now = datetime.now()
 
+    logger.info(f"[HANDLER START] user_id={user.id}, message_id={message_id}, text='{message_text[:20]}...'")
+
     if message_id in processed_message_ids:
-        logger.warning(f"Duplicate message detected (ID: {message_id}), skipping")
+        logger.warning(f"[DEDUP] Duplicate message detected (ID: {message_id}), skipping")
         return
 
     processed_message_ids.add(message_id)
+    logger.info(f"[DEDUP] Added message_id={message_id} to processed set (total: {len(processed_message_ids)})")
 
     if len(processed_message_ids) > 1000:
         processed_message_ids.clear()
         logger.info("Cleared processed message IDs cache")
 
-    should_send_welcome = False
+    is_new_session = False
 
     if user.id in last_message_time:
         time_since_last = now - last_message_time[user.id]
         if time_since_last > timedelta(minutes=SESSION_TIMEOUT_MINUTES):
-            should_send_welcome = True
-            logger.info(f"User [telegram_{user.id}] session timeout ({SESSION_TIMEOUT_MINUTES}min) - sending welcome")
+            is_new_session = True
+            logger.info(f"User [telegram_{user.id}] session timeout ({SESSION_TIMEOUT_MINUTES}min) - new session")
     else:
-        should_send_welcome = True
-        logger.info(f"User [telegram_{user.id}] first message - sending welcome")
-
-    if should_send_welcome:
-        await send_welcome_message(update)
+        is_new_session = True
+        logger.info(f"User [telegram_{user.id}] first message - new session")
 
     last_message_time[user.id] = now
 

@@ -1,17 +1,20 @@
 import logging
+import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.security import decode_access_token
 from app.core.database import get_db
+from app.utils.logging import mask_user_key
 
 logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 
 
-async def get_current_user_id(
+async def get_current_user_key(
     credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> int:
+) -> str:
+    """Validate JWT and return user_key (UUID)"""
     token = credentials.credentials
 
     payload = decode_access_token(token)
@@ -24,24 +27,25 @@ async def get_current_user_id(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id = payload.get("sub")
-    if user_id is None:
-        logger.warning("JWT validation failed: missing user_id in token")
+    user_key = payload.get("sub")
+    if user_key is None:
+        logger.warning("JWT validation failed: missing user_key in token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Validate UUID format
     try:
-        user_id_int = int(user_id)
-    except ValueError:
-        logger.warning(f"JWT validation failed: invalid user_id format: {user_id}")
+        uuid.UUID(user_key)
+    except (ValueError, AttributeError):
+        logger.warning(f"JWT validation failed: invalid user_key format: {mask_user_key(user_key)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    logger.debug(f"JWT validated successfully: user_id={user_id_int}")
-    return user_id_int
+    logger.debug(f"JWT validated successfully: user_key={mask_user_key(user_key)}")
+    return user_key

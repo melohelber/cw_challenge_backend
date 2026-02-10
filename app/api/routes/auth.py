@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.core.security import create_access_token
 from app.services.user_store import UserStore
 from app.models.schemas import UserCreate, UserResponse, UserLogin, TokenResponse
+from app.utils.logging import mask_user_key
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             detail="User registration failed"
         )
 
-    logger.info(f"User registered successfully: id={user.id}, username={user.username}")
+    logger.info(f"User registered successfully: user_key={mask_user_key(user.user_key)}, username={user.username}")
     return user
 
 
@@ -61,9 +62,9 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
         )
 
     access_token = create_access_token(data={
-        "sub": str(user.id),
+        "sub": user.user_key,  # Use UUID instead of sequential ID
         "username": user.username
     })
 
-    logger.info(f"User logged in successfully: id={user.id}, username={user.username}")
+    logger.info(f"User logged in successfully: user_key={mask_user_key(user.user_key)}, username={user.username}")
     return TokenResponse(access_token=access_token)

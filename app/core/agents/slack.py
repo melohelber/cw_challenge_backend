@@ -2,6 +2,7 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from app.core.agents.base import BaseAgent, AgentResponse
+from app.utils.logging import sanitize_message_for_log, mask_user_key
 
 logger = logging.getLogger(__name__)
 
@@ -23,18 +24,18 @@ class SlackAgent(BaseAgent):
         super().__init__(name="slack_escalation")
         self.escalation_channel = "#support-escalations"
 
-    async def process(self, message: str, user_id: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
+    async def process(self, message: str, user_key: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
         global recent_escalations
 
         now = datetime.now()
         cooldown_minutes = 5
 
-        if user_id in recent_escalations:
-            last_escalation = recent_escalations[user_id]
+        if user_key in recent_escalations:
+            last_escalation = recent_escalations[user_key]
             time_since_last = now - last_escalation["timestamp"]
 
             if time_since_last < timedelta(minutes=cooldown_minutes):
-                self.logger.info(f"User {user_id} already has recent ticket: {last_escalation['ticket_id']}")
+                self.logger.info(f"User {mask_user_key(user_key)} already has recent ticket: {last_escalation['ticket_id']}")
                 response = f"""Sua chamada já foi enviada para nossa equipe de suporte.
 
 📋 **Número do ticket:** {last_escalation['ticket_id']}
@@ -57,14 +58,14 @@ Nossa equipe entrará em contato em breve. Por favor, aguarde um momento."""
 
         self.logger.warning(
             f"ESCALATION TO HUMAN SUPPORT - "
-            f"User: {user_id}, "
+            f"User: {mask_user_key(user_key)}, "
             f"Reason: {reason_description}, "
-            f"Message: {message[:100]}..."
+            f"Message: {sanitize_message_for_log(message, 100)}"
         )
 
-        ticket_id = self._generate_ticket_id(user_id)
+        ticket_id = self._generate_ticket_id(user_key)
 
-        recent_escalations[user_id] = {
+        recent_escalations[user_key] = {
             "ticket_id": ticket_id,
             "timestamp": now
         }
@@ -78,7 +79,7 @@ Nossa equipe entrará em contato em breve. Por favor, aguarde um momento."""
             self.logger.info("Cleaned up old escalations from cache")
 
         slack_message = self._format_slack_message(
-            user_id=user_id,
+            user_key=user_key,
             message=message,
             reason=reason_description,
             ticket_id=ticket_id,
@@ -101,16 +102,16 @@ Nossa equipe entrará em contato em breve. Por favor, aguarde um momento."""
             }
         )
 
-    def _generate_ticket_id(self, user_id: str) -> str:
+    def _generate_ticket_id(self, user_key: str) -> str:
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        return f"SUP-{timestamp}-{user_id[:8]}"
+        return f"SUP-{timestamp}-{user_key[:8]}"
 
-    def _format_slack_message(self, user_id: str, message: str, reason: str, ticket_id: str, metadata: Dict) -> str:
+    def _format_slack_message(self, user_key: str, message: str, reason: str, ticket_id: str, metadata: Dict) -> str:
         return f"""
 🚨 **Support Escalation** 🚨
 
 **Ticket ID:** {ticket_id}
-**User ID:** {user_id}
+**User Key:** {mask_user_key(user_key)}
 **Reason:** {reason}
 **Timestamp:** {datetime.now().isoformat()}
 

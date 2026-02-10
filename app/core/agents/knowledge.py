@@ -6,7 +6,7 @@ from tavily import TavilyClient
 from app.core.agents.base import BaseAgent, AgentResponse
 from app.services.vector_store import VectorStoreService
 from app.config import settings
-from app.utils.logging import sanitize_message_for_log
+from app.utils.logging import sanitize_message_for_log, mask_user_key
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 KNOWLEDGE_PROMPT = """You are a helpful AI assistant for InfinitePay, a Brazilian payment processing company.
 
 Use the provided context to answer the user's question accurately and concisely.
+
+{history}
 
 Context:
 {context}
@@ -29,6 +31,7 @@ Instructions:
 - Speak naturally as a human assistant would
 - When answering InfinitePay questions, focus on being accurate and helpful
 - When answering general questions (weather, news, etc.), provide the information from the context if available
+- Use conversation history ONLY if relevant to answer the current question (e.g., when user refers to previous topics)
 
 Your answer:"""
 
@@ -52,7 +55,18 @@ class KnowledgeAgent(BaseAgent):
         Detect conversational messages (greetings, small talk) that don't require web search.
         Avoids unnecessary Tavily calls for messages that only need AI inference.
         """
-        message_clean = message.lower().strip()
+        import re
+
+        # Remove Telegram metadata first (e.g., "[User's real first name is: ...]")
+        message_without_metadata = re.sub(
+            r'\[User\'?s?\s+real\s+first\s+name\s+is:.*?\]',
+            '',
+            message,
+            flags=re.IGNORECASE | re.DOTALL
+        ).strip()
+
+        # Remove punctuation and clean message
+        message_clean = re.sub(r'[^\w\s]', '', message_without_metadata.lower()).strip()
 
         # Simple greetings
         greetings = [
@@ -71,7 +85,7 @@ class KnowledgeAgent(BaseAgent):
             "como está", "como esta", "tá bem", "ta bem"
         ]
 
-        # Check exact match for simple greetings
+        # Check exact match for simple greetings (after removing punctuation)
         if message_clean in greetings:
             return True
 
@@ -103,7 +117,7 @@ class KnowledgeAgent(BaseAgent):
             response = self.tavily_client.search(
                 query=query,
                 max_results=3,
-                search_depth="advanced"
+                search_depth=settings.TAVILY_SEARCH_DEPTH
             )
 
             if response and "results" in response:
@@ -128,10 +142,13 @@ class KnowledgeAgent(BaseAgent):
             self.logger.error(f"Tavily search error: {str(e)}")
             return f"Web search unavailable: {str(e)}"
 
-    async def process(self, message: str, user_id: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
-        self.logger.info(f"Processing knowledge query for user {user_id}: {sanitize_message_for_log(message, 100)}")
+    async def process(self, message: str, user_key: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
+        self.logger.info(f"Processing knowledge query for user {mask_user_key(user_key)}: {sanitize_message_for_log(message, 100)}")
 
         try:
+            # Extract conversation history from context
+            history_text = context.get("history", "") if context else ""
+
             context_text = ""
             source_type = "none"
 
@@ -160,6 +177,7 @@ class KnowledgeAgent(BaseAgent):
                     source_type = "tavily"
 
             result = await self.chain.ainvoke({
+                "history": history_text,
                 "context": context_text,
                 "question": message
             })

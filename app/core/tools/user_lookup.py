@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, Optional
+from app.utils.logging import mask_user_key
 
 logger = logging.getLogger(__name__)
 
@@ -54,18 +55,19 @@ MOCKED_USERS = {
 }
 
 
-def user_lookup(user_id: str) -> Dict[str, any]:
-    logger.info(f"Tool [user_lookup] called with user_id={user_id}")
+def user_lookup(user_key: str) -> Dict[str, any]:
+    logger.info(f"Tool [user_lookup] called with user_key={mask_user_key(user_key)}")
 
-    user_data = MOCKED_USERS.get(user_id)
+    # For mocked data, still use user_key to lookup
+    user_data = MOCKED_USERS.get(user_key)
 
     if not user_data:
-        logger.info(f"Tool [user_lookup] using default mock data for user: {user_id}")
+        logger.info(f"Tool [user_lookup] using default mock data for user: {mask_user_key(user_key)}")
         user_data = MOCKED_USERS.get("user_test", {}).copy()
         if user_data:
-            user_data["user_id"] = user_id
+            user_data["user_id"] = user_key
 
-    logger.info(f"Tool [user_lookup] returned data for user: {user_data['name']}")
+    logger.info(f"Tool [user_lookup] returned data for user: {mask_user_key(user_key)}")
     return {
         "found": True,
         **user_data
@@ -87,6 +89,6 @@ def get_user_info_description() -> str:
     - "Show my profile"
     - "What's my email?"
 
-    Input: user_id (string)
+    Input: user_key (string - UUID)
     Output: User profile data including name, email, status, verification level
     """

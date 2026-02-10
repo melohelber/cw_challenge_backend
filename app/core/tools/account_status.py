@@ -1,6 +1,7 @@
 import logging
 from typing import Dict
 from datetime import datetime
+from app.utils.logging import mask_user_key
 
 logger = logging.getLogger(__name__)
 
@@ -62,20 +63,21 @@ MOCKED_ACCOUNT_STATUS = {
 }
 
 
-def account_status(user_id: str) -> Dict[str, any]:
-    logger.info(f"Tool [account_status] called with user_id={user_id}")
+def account_status(user_key: str) -> Dict[str, any]:
+    logger.info(f"Tool [account_status] called with user_key={mask_user_key(user_key)}")
 
-    status_data = MOCKED_ACCOUNT_STATUS.get(user_id)
+    # For mocked data, still use user_key to lookup
+    status_data = MOCKED_ACCOUNT_STATUS.get(user_key)
 
     if not status_data:
-        logger.warning(f"Tool [account_status] no status found for user: {user_id}")
+        logger.warning(f"Tool [account_status] no status found for user: {mask_user_key(user_key)}")
         return {
-            "user_id": user_id,
+            "user_key": user_key,
             "found": False,
             "error": "Account not found"
         }
 
-    logger.info(f"Tool [account_status] returned status for user: {user_id} (status={status_data['account_status']})")
+    logger.info(f"Tool [account_status] returned status for user: {mask_user_key(user_key)} (status={status_data['account_status']})")
 
     return {
         "found": True,
@@ -99,6 +101,6 @@ def get_account_status_description() -> str:
     - "How much can I transfer today?"
     - "Check my account status"
 
-    Input: user_id (string)
+    Input: user_key (string - UUID)
     Output: Account status, limits, restrictions, and usage information
     """

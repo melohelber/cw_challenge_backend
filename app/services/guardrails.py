@@ -27,14 +27,66 @@ class GuardrailsService:
         ]
 
         self.prompt_injection_patterns = [
+            # Basic instruction overrides
             "ignore previous",
             "ignore all",
+            "ignore instructions",
+            "ignore the above",
+            "ignore your",
             "forget everything",
+            "forget previous",
+            "forget all",
+            "disregard previous",
+            "disregard all",
+            "disregard instructions",
+
+            # New instruction attempts
             "new instructions",
+            "new rules",
+            "new prompt",
+            "new context",
+            "updated instructions",
+
+            # System/prompt manipulation
             "system prompt",
+            "system message",
+            "system instructions",
+            "override instructions",
+            "override prompt",
+            "bypass instructions",
+            "bypass rules",
+
+            # Role manipulation
             "you are now",
             "act as if",
-            "pretend you are"
+            "act as a",
+            "pretend you are",
+            "pretend to be",
+            "pretend that",
+            "role play",
+            "roleplay as",
+            "simulate being",
+            "you must now",
+            "from now on",
+
+            # Context reset attempts
+            "reset context",
+            "reset instructions",
+            "start over",
+            "begin again",
+            "restart",
+
+            # Synonyms and variations
+            "skip previous",
+            "skip instructions",
+            "omit instructions",
+            "neglect previous",
+
+            # Common typos and obfuscations
+            "ignor previous",  # typo
+            "ignore  previous",  # extra space
+            "ig nore",  # space injection
+            "forget  all",  # extra space
         ]
 
     def check(self, message: str) -> GuardrailResult:

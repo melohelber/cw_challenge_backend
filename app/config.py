@@ -11,8 +11,9 @@ class Settings(BaseSettings):
     )
 
     ANTHROPIC_API_KEY: str
-    ANTHROPIC_MODEL: str = "claude-haiku-4-5-20251001"
+    ANTHROPIC_MODEL: str = "claude-sonnet-4-5-20250929"
     TAVILY_API_KEY: str
+    TAVILY_SEARCH_DEPTH: str = "advanced"
     SECRET_KEY: str
 
     ENVIRONMENT: str = "development"
@@ -28,6 +29,11 @@ class Settings(BaseSettings):
 
     AGENT_TIMEOUT_SECONDS: int = 30
     CACHE_TTL_HOURS: int = 1
+
+    # Session Management
+    SESSION_TIMEOUT_MINUTES: int = 5
+    SESSION_CLEANUP_INTERVAL_MINUTES: int = 30
+    CONVERSATION_HISTORY_PAIRS: int = 5  # Number of message pairs (user+assistant) to include in context
 
     TELEGRAM_BOT_TOKEN: str = ""
     BOT_PASSWORD: str = ""

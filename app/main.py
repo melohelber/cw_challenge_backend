@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.utils.logging import setup_logging, mask_api_key
 from app.core.database import create_tables
-from app.models.database import User, Conversation
+from app.models.database import User, Conversation, Session
 from app.api.routes import auth, chat
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,8 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info("Application started successfully!")
     logger.info(f"API Documentation: http://localhost:8000/docs")
+    logger.info(f"Session timeout: {settings.SESSION_TIMEOUT_MINUTES} minutes")
+    logger.info(f"History pairs: {settings.CONVERSATION_HISTORY_PAIRS}")
     logger.info("=" * 60)
 
     yield

@@ -8,6 +8,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    session_id = Column(String(36), ForeignKey("sessions.session_id"), nullable=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     message = Column(Text, nullable=False)
     response = Column(Text, nullable=False)
@@ -15,3 +16,4 @@ class Conversation(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     user = relationship("User", back_populates="conversations")
+    session = relationship("Session", back_populates="conversations")

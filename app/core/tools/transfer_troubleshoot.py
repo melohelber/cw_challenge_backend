@@ -1,6 +1,7 @@
 import logging
 from typing import Dict
 from datetime import datetime, timedelta
+from app.utils.logging import mask_user_key
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,9 @@ def transfer_troubleshoot(transfer_id: str) -> Dict[str, any]:
             "message": "Transfer completed successfully with no issues detected"
         }
 
-    logger.warning(f"Tool [transfer_troubleshoot] issue detected for transfer: {transfer_id} (type={transfer_data['issue_type']})")
+    # Mask user_key in the log if present in transfer_data
+    user_key_masked = mask_user_key(transfer_data.get('user_id', '')) if transfer_data.get('user_id') else 'N/A'
+    logger.warning(f"Tool [transfer_troubleshoot] issue detected for transfer: {transfer_id} (user={user_key_masked}, type={transfer_data['issue_type']})")
 
     return {
         "found": True,
