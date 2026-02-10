@@ -725,10 +725,7 @@ docker compose up
 
 ## 👥 Contributors
 
-**Developer:** [Your Name]
-**Challenge:** CloudWalk Agent Swarm
-**Interviewer:** Leonardo Frizzo (Head of Engineering)
-**CEO:** Luiz Silva
+**Developer:** Pelots
 
 ---
 
