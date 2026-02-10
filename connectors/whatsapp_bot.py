@@ -351,6 +351,12 @@ def sanitize_and_enrich_message(message: str, contact_name: str) -> str:
 def extract_contact_name(webhook_data: dict) -> str:
     """Extract contact/push name from UAZAPI webhook payload."""
     try:
+        # UAZAPI stores name in chat.wa_name
+        chat = webhook_data.get("chat", {})
+        name = chat.get("wa_name", "") or chat.get("name", "")
+        if name:
+            return name
+        # Fallback: check message-level or legacy format
         push_name = webhook_data.get("data", {}).get("pushName", "")
         if push_name:
             return push_name
@@ -441,23 +447,26 @@ def webhook():
                 return jsonify({"status": "unauthorized"}), 401
 
         # UAZAPI webhook payload - check event type
-        event_type = data.get("event", "")
+        # UAZAPI uses "EventType" (capitalized) with value "messages"
+        event_type = data.get("EventType", "") or data.get("event", "")
         print(f"[WEBHOOK] event_type='{event_type}'", flush=True)
 
         # Only process incoming text messages
-        if event_type not in ("messages.upsert", "message"):
+        if event_type not in ("messages", "messages.upsert", "message"):
             print(f"[WEBHOOK] Ignoring non-message event: {event_type}", flush=True)
             return jsonify({"status": "ignored"}), 200
 
-        # Extract message data
-        message_data = data.get("data", {})
-        key = message_data.get("key", {})
-        message_id = key.get("id", "")
-        from_me = key.get("fromMe", False)
-        remote_jid = key.get("remoteJid", "")
+        # Extract message data from UAZAPI payload
+        # UAZAPI structure: { "message": { "messageid", "fromMe", "chatid", "content", ... }, "chat": { "phone", "wa_name", ... } }
+        msg = data.get("message", {})
+        chat = data.get("chat", {})
+        message_id = msg.get("messageid", "") or msg.get("id", "")
+        from_me = msg.get("fromMe", False)
+        remote_jid = msg.get("chatid", "") or chat.get("wa_chatid", "")
+        is_group = msg.get("isGroup", False) or chat.get("wa_isGroup", False)
 
         # Skip group messages
-        if "@g.us" in remote_jid:
+        if is_group or "@g.us" in remote_jid:
             logger.debug(f"Ignoring group message from {remote_jid}")
             return jsonify({"status": "skipped_group"}), 200
 
@@ -465,25 +474,19 @@ def webhook():
         if from_me:
             return jsonify({"status": "skipped_own"}), 200
 
-        phone = normalize_phone(remote_jid)
+        # Get phone from chat object or normalize from JID
+        phone = chat.get("phone", "") or normalize_phone(remote_jid)
         if not phone:
             return jsonify({"status": "skipped_no_phone"}), 200
 
-        # Extract message text
-        msg_obj = message_data.get("message", {})
-        message_text = msg_obj.get("conversation", "")
-
-        # Also check for extendedTextMessage (quoted replies, forwarded)
-        if not message_text:
-            message_text = msg_obj.get("extendedTextMessage", {}).get("text", "")
+        # Extract message text - UAZAPI puts it in "content"
+        message_text = msg.get("content", "")
 
         # Handle media messages (no text)
         if not message_text:
-            is_media = any(key in msg_obj for key in [
-                "imageMessage", "audioMessage", "videoMessage",
-                "documentMessage", "stickerMessage", "contactMessage",
-                "locationMessage"
-            ])
+            media_type = msg.get("mediaType", "")
+            message_type = msg.get("messageType", "")
+            is_media = bool(media_type) or message_type not in ("Conversation", "extendedTextMessage", "")
             if is_media:
                 uazapi.send_text(
                     phone,
