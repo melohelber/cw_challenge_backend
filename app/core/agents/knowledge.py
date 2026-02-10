@@ -33,6 +33,7 @@ Instructions:
 - When answering InfinitePay questions, focus on being accurate and helpful
 - When answering general questions (weather, news, etc.), provide the information from the context if available
 - Use conversation history ONLY if relevant to answer the current question (e.g., when user refers to previous topics)
+- If conversation history exists, DO NOT greet the user again (no "Olá", "Oi", etc.) - just continue the conversation naturally
 
 Your answer:"""
 

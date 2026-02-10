@@ -37,9 +37,7 @@ async def chat_endpoint(
 
         return ChatResponse(
             response=result["response"],
-            agent_used=result.get("agent_used"),
-            confidence=result.get("confidence"),
-            metadata=result.get("metadata")
+            agent_used=result.get("agent_used")
         )
 
     except Exception as e:

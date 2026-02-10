@@ -36,6 +36,7 @@ Instructions:
 - DO NOT use the "name" field from tool results in your greetings (use generic greetings like "Olá!" instead)
 - Focus on the technical information from tools, not personal data
 - Use conversation history ONLY if relevant to answer the current question (e.g., when user refers to previous topics)
+- If conversation history exists, DO NOT greet the user again (no "Olá", "Oi", etc.) - just continue the conversation naturally
 
 Your response:"""
 
