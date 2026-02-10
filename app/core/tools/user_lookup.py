@@ -58,7 +58,6 @@ MOCKED_USERS = {
 def user_lookup(user_key: str) -> Dict[str, any]:
     logger.info(f"Tool [user_lookup] called with user_key={mask_user_key(user_key)}")
 
-    # For mocked data, still use user_key to lookup
     user_data = MOCKED_USERS.get(user_key)
 
     if not user_data:
@@ -72,23 +71,3 @@ def user_lookup(user_key: str) -> Dict[str, any]:
         "found": True,
         **user_data
     }
-
-
-def get_user_info_description() -> str:
-    return """
-    Use this tool when user asks about:
-    - Their account information
-    - Profile details
-    - Account status (active/blocked)
-    - Contact information
-    - Verification level
-
-    Example queries:
-    - "What's my account status?"
-    - "Am I verified?"
-    - "Show my profile"
-    - "What's my email?"
-
-    Input: user_key (string - UUID)
-    Output: User profile data including name, email, status, verification level
-    """

@@ -1,3 +1,4 @@
+import re
 import logging
 from typing import Dict, Any, Optional, List
 from langchain_anthropic import ChatAnthropic
@@ -51,13 +52,6 @@ class KnowledgeAgent(BaseAgent):
         self.tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
 
     def _is_conversational(self, message: str) -> bool:
-        """
-        Detect conversational messages (greetings, small talk) that don't require web search.
-        Avoids unnecessary Tavily calls for messages that only need AI inference.
-        """
-        import re
-
-        # Remove Telegram metadata first (e.g., "[User's real first name is: ...]")
         message_without_metadata = re.sub(
             r'\[User\'?s?\s+real\s+first\s+name\s+is:.*?\]',
             '',
@@ -65,17 +59,14 @@ class KnowledgeAgent(BaseAgent):
             flags=re.IGNORECASE | re.DOTALL
         ).strip()
 
-        # Remove punctuation and clean message
         message_clean = re.sub(r'[^\w\s]', '', message_without_metadata.lower()).strip()
 
-        # Simple greetings
         greetings = [
             "oi", "olá", "ola", "hello", "hi", "hey",
             "bom dia", "boa tarde", "boa noite",
             "good morning", "good afternoon", "good evening"
         ]
 
-        # Conversational phrases (how are you, what's up, etc.)
         conversational_phrases = [
             "tudo bem", "tudo bom", "como vai", "como você está", "como vc está",
             "e aí", "e ai", "beleza", "tranquilo",
@@ -85,16 +76,13 @@ class KnowledgeAgent(BaseAgent):
             "como está", "como esta", "tá bem", "ta bem"
         ]
 
-        # Check exact match for simple greetings (after removing punctuation)
         if message_clean in greetings:
             return True
 
-        # Check if message contains conversational phrases
         for phrase in conversational_phrases:
             if phrase in message_clean:
                 return True
 
-        # Check short messages with greetings (e.g., "oi tudo bem?")
         if len(message_clean.split()) <= 4 and any(g in message_clean for g in greetings):
             return True
 
@@ -146,7 +134,6 @@ class KnowledgeAgent(BaseAgent):
         self.logger.info(f"Processing knowledge query for user {mask_user_key(user_key)}: {sanitize_message_for_log(message, 100)}")
 
         try:
-            # Extract conversation history from context
             history_text = context.get("history", "") if context else ""
 
             context_text = ""

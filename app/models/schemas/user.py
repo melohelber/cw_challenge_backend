@@ -14,7 +14,7 @@ class UserCreate(BaseModel):
 
 
 class UserResponse(BaseModel):
-    user_key: str  # UUID public identifier (not sequential id)
+    user_key: str
     username: str
     created_at: datetime
 

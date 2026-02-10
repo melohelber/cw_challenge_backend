@@ -17,12 +17,10 @@ class Session(Base):
     expires_at = Column(DateTime, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False, index=True)
 
-    # Relationships
     user = relationship("User", back_populates="sessions")
     conversations = relationship("Conversation", back_populates="session", cascade="all, delete-orphan")
 
     def __init__(self, *args, **kwargs):
-        """Initialize session with expiration time (default 5 minutes from creation)"""
         timeout_minutes = kwargs.pop('timeout_minutes', 5)
         super().__init__(*args, **kwargs)
 
@@ -30,16 +28,13 @@ class Session(Base):
             self.expires_at = datetime.utcnow() + timedelta(minutes=timeout_minutes)
 
     def is_expired(self) -> bool:
-        """Check if session is expired based on expires_at timestamp"""
         return datetime.utcnow() > self.expires_at
 
     def update_activity(self, timeout_minutes: int = 5):
-        """Update last activity timestamp and extend expiration"""
         self.last_activity_at = datetime.utcnow()
         self.expires_at = datetime.utcnow() + timedelta(minutes=timeout_minutes)
 
     def end(self):
-        """Mark session as inactive"""
         self.is_active = False
 
     def __repr__(self):

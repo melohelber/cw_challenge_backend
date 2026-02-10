@@ -1,17 +1,10 @@
 #!/usr/bin/env python3
-"""
-WhatsApp Bot Connector for CloudWalk Agent Swarm (via UAZAPI)
-
-Connects WhatsApp to FastAPI backend using JWT authentication.
-Bot acts as a channel-agnostic connector - backend doesn't know messages come from WhatsApp.
-Uses UAZAPI (https://uazapi.dev) as the WhatsApp API provider.
-Runs a Flask webhook server to receive incoming messages (push-based, unlike Telegram's polling).
-"""
 
 import os
 import sys
 import logging
 import re
+import json
 import time
 from datetime import datetime, timedelta
 from typing import Optional
@@ -23,32 +16,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# =============================================================================
-# Configuration
-# =============================================================================
-
-# UAZAPI
 UAZAPI_BASE_URL = os.getenv("UAZAPI_BASE_URL", "https://your-subdomain.uazapi.com")
 UAZAPI_API_TOKEN = os.getenv("UAZAPI_API_TOKEN")
 UAZAPI_INSTANCE_ID = os.getenv("UAZAPI_INSTANCE_ID")
 UAZAPI_WEBHOOK_TOKEN = os.getenv("UAZAPI_WEBHOOK_TOKEN", "")
 
-# Backend (same pattern as Telegram connector)
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 BOT_USERNAME = os.getenv("WHATSAPP_BOT_USERNAME", "whatsapp_bot")
 BOT_PASSWORD = os.getenv("WHATSAPP_BOT_PASSWORD")
 SESSION_TIMEOUT_MINUTES = int(os.getenv("WHATSAPP_SESSION_TIMEOUT_MINUTES", "10"))
 
-# Webhook server
 WEBHOOK_PORT = int(os.getenv("WHATSAPP_WEBHOOK_PORT", "5001"))
 WEBHOOK_HOST = os.getenv("WHATSAPP_WEBHOOK_HOST", "0.0.0.0")
 
-# Message limits
 MAX_MESSAGE_LENGTH = 4000
-
-# =============================================================================
-# Logging
-# =============================================================================
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,21 +38,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("whatsapp_bot")
 
-# =============================================================================
-# State Management (thread-safe for Flask)
-# =============================================================================
-
 last_message_time = {}
 processed_message_ids = set()
 state_lock = Lock()
 
 
-# =============================================================================
-# UazapiClient - Communication with UAZAPI REST API
-# =============================================================================
-
 class UazapiClient:
-    """Handles communication with UAZAPI REST API for sending WhatsApp messages."""
 
     def __init__(self):
         self.base_url = UAZAPI_BASE_URL
@@ -85,7 +57,6 @@ class UazapiClient:
         }
 
     def send_text(self, phone: str, message: str) -> bool:
-        """Send a text message to a WhatsApp phone number."""
         try:
             response = requests.post(
                 f"{self.base_url}/send/text",
@@ -129,7 +100,6 @@ class UazapiClient:
             return False
 
     def send_long_message(self, phone: str, text: str) -> bool:
-        """Send message, splitting into chunks if too long."""
         if len(text) <= MAX_MESSAGE_LENGTH:
             return self.send_text(phone, text)
 
@@ -141,7 +111,6 @@ class UazapiClient:
         return success
 
     def get_instance_status(self) -> dict:
-        """Check UAZAPI instance connection status."""
         try:
             response = requests.get(
                 f"{self.base_url}/status",
@@ -155,14 +124,12 @@ class UazapiClient:
 
     @staticmethod
     def _mask_phone(phone: str) -> str:
-        """Mask phone number for logging (show last 4 digits)."""
         if len(phone) > 4:
             return "*" * (len(phone) - 4) + phone[-4:]
         return "****"
 
     @staticmethod
     def _split_at_paragraphs(text: str, max_length: int) -> list:
-        """Split text at paragraph boundaries to respect max length."""
         if len(text) <= max_length:
             return [text]
 
@@ -178,7 +145,6 @@ class UazapiClient:
                 if len(paragraph) <= max_length:
                     current = paragraph
                 else:
-                    # Paragraph itself is too long, split by lines
                     for line in paragraph.split("\n"):
                         if len(current) + len(line) + 1 <= max_length:
                             current = f"{current}\n{line}" if current else line
@@ -193,12 +159,7 @@ class UazapiClient:
         return chunks
 
 
-# =============================================================================
-# BackendClient - Communication with FastAPI backend (same pattern as Telegram)
-# =============================================================================
-
 class BackendClient:
-    """Handles communication with FastAPI backend including JWT authentication."""
 
     def __init__(self):
         self.backend_url = BACKEND_URL
@@ -208,7 +169,6 @@ class BackendClient:
         self.token_expires_at: Optional[datetime] = None
 
     def login(self) -> bool:
-        """Login to backend and get JWT token."""
         try:
             response = requests.post(
                 f"{self.backend_url}/auth/login",
@@ -231,7 +191,6 @@ class BackendClient:
             return False
 
     def ensure_authenticated(self) -> bool:
-        """Ensure bot is authenticated, renew token if needed."""
         if not self.jwt_token or not self.token_expires_at:
             logger.info("No token found, logging in...")
             return self.login()
@@ -243,7 +202,6 @@ class BackendClient:
         return True
 
     def send_message(self, message: str, whatsapp_phone: str) -> dict:
-        """Send message to backend /chat endpoint."""
         if not self.ensure_authenticated():
             return {
                 "response": "Desculpe, estou com problemas de conexao com o servidor. Tente novamente em instantes.",
@@ -286,38 +244,15 @@ class BackendClient:
             }
 
 
-# =============================================================================
-# Formatting Functions
-# =============================================================================
-
 def format_for_whatsapp(text: str) -> str:
-    """
-    Convert Claude/backend Markdown to WhatsApp-compatible formatting.
-
-    WhatsApp formatting:
-    - *bold* (single asterisk)
-    - _italic_ (single underscore)
-    - ~strikethrough~ (tilde)
-    - ```code``` (triple backtick)
-    - No heading support
-    """
-    # Remove markdown headings (WhatsApp doesn't support them)
     text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
-
-    # Convert **bold** to *bold* (WhatsApp uses single asterisk)
     text = re.sub(r'\*\*(.*?)\*\*', r'*\1*', text)
-
-    # Convert __italic__ to _italic_
     text = re.sub(r'__(.*?)__', r'_\1_', text)
-
-    # Convert inline `code` to ```code``` for WhatsApp
     text = re.sub(r'(?<!`)`([^`]+)`(?!`)', r'```\1```', text)
-
     return text
 
 
 def strip_all_formatting(text: str) -> str:
-    """Remove ALL formatting as fallback for plain text."""
     text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
     text = text.replace("**", "")
     text = text.replace("__", "")
@@ -328,15 +263,7 @@ def strip_all_formatting(text: str) -> str:
     return text
 
 
-# =============================================================================
-# Message Sanitization (same as Telegram connector)
-# =============================================================================
-
 def sanitize_and_enrich_message(message: str, contact_name: str) -> str:
-    """
-    Sanitize message to prevent name injection attacks and append real contact name.
-    Mirrors Telegram connector's sanitize_and_enrich_message function.
-    """
     clean_message = re.sub(
         r'\[User\'?s?\s+real\s+first\s+name\s+is:.*?\]',
         '',
@@ -349,14 +276,11 @@ def sanitize_and_enrich_message(message: str, contact_name: str) -> str:
 
 
 def extract_contact_name(webhook_data: dict) -> str:
-    """Extract contact/push name from UAZAPI webhook payload."""
     try:
-        # UAZAPI stores name in chat.wa_name
         chat = webhook_data.get("chat", {})
         name = chat.get("wa_name", "") or chat.get("name", "")
         if name:
             return name
-        # Fallback: check message-level or legacy format
         push_name = webhook_data.get("data", {}).get("pushName", "")
         if push_name:
             return push_name
@@ -365,12 +289,7 @@ def extract_contact_name(webhook_data: dict) -> str:
         return "Usuario"
 
 
-# =============================================================================
-# Deduplication & Session Tracking (thread-safe)
-# =============================================================================
-
 def is_duplicate_message(message_id: str) -> bool:
-    """Check and register message ID for deduplication."""
     with state_lock:
         if message_id in processed_message_ids:
             logger.warning(f"[DEDUP] Duplicate message detected (ID: {message_id}), skipping")
@@ -387,7 +306,6 @@ def is_duplicate_message(message_id: str) -> bool:
 
 
 def check_session_status(phone: str) -> bool:
-    """Check if this is a new session (first message or after timeout). Returns True if new session."""
     now = datetime.now()
 
     with state_lock:
@@ -406,58 +324,40 @@ def check_session_status(phone: str) -> bool:
 
 
 def normalize_phone(phone: str) -> str:
-    """Normalize phone number: remove non-digits and WhatsApp JID suffix."""
     phone = phone.replace("@s.whatsapp.net", "").replace("@g.us", "")
     phone = re.sub(r'[\s\-\(\)\+]', '', phone)
     return phone
 
 
-# =============================================================================
-# Initialize Clients
-# =============================================================================
-
 uazapi = UazapiClient()
 backend = BackendClient()
-
-# =============================================================================
-# Flask Webhook Server
-# =============================================================================
 
 app = Flask(__name__)
 
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    """Receive incoming WhatsApp messages from UAZAPI webhook."""
     try:
         data = request.get_json()
 
         if not data:
             return jsonify({"status": "error", "message": "No data"}), 400
 
-        # Log raw payload for debugging (always print to stdout for Gunicorn)
-        import json as _json
-        print(f"[WEBHOOK RAW] {_json.dumps(data, default=str)[:2000]}", flush=True)
+        print(f"[WEBHOOK RAW] {json.dumps(data, default=str)[:2000]}", flush=True)
 
-        # Optional: verify webhook token
         if UAZAPI_WEBHOOK_TOKEN:
             token = request.headers.get("X-Webhook-Token", "")
             if token != UAZAPI_WEBHOOK_TOKEN:
                 print(f"[WEBHOOK] Invalid token received", flush=True)
                 return jsonify({"status": "unauthorized"}), 401
 
-        # UAZAPI webhook payload - check event type
-        # UAZAPI uses "EventType" (capitalized) with value "messages"
         event_type = data.get("EventType", "") or data.get("event", "")
         print(f"[WEBHOOK] event_type='{event_type}'", flush=True)
 
-        # Only process incoming text messages
         if event_type not in ("messages", "messages.upsert", "message"):
             print(f"[WEBHOOK] Ignoring non-message event: {event_type}", flush=True)
             return jsonify({"status": "ignored"}), 200
 
-        # Extract message data from UAZAPI payload
-        # UAZAPI structure: { "message": { "messageid", "fromMe", "chatid", "content", ... }, "chat": { "phone", "wa_name", ... } }
         msg = data.get("message", {})
         chat = data.get("chat", {})
         message_id = msg.get("messageid", "") or msg.get("id", "")
@@ -465,24 +365,19 @@ def webhook():
         remote_jid = msg.get("chatid", "") or chat.get("wa_chatid", "")
         is_group = msg.get("isGroup", False) or chat.get("wa_isGroup", False)
 
-        # Skip group messages
         if is_group or "@g.us" in remote_jid:
             logger.debug(f"Ignoring group message from {remote_jid}")
             return jsonify({"status": "skipped_group"}), 200
 
-        # Skip own messages (prevent infinite loop)
         if from_me:
             return jsonify({"status": "skipped_own"}), 200
 
-        # Get phone from chat object or normalize from JID
         phone = chat.get("phone", "") or normalize_phone(remote_jid)
         if not phone:
             return jsonify({"status": "skipped_no_phone"}), 200
 
-        # Extract message text - UAZAPI puts it in "content"
         message_text = msg.get("content", "")
 
-        # Handle media messages (no text)
         if not message_text:
             media_type = msg.get("mediaType", "")
             message_type = msg.get("messageType", "")
@@ -496,11 +391,9 @@ def webhook():
                 return jsonify({"status": "media_rejected"}), 200
             return jsonify({"status": "skipped_empty"}), 200
 
-        # Deduplication
         if is_duplicate_message(message_id):
             return jsonify({"status": "duplicate"}), 200
 
-        # Session tracking
         is_new_session = check_session_status(phone)
 
         contact_name = extract_contact_name(data)
@@ -508,22 +401,17 @@ def webhook():
         logger.info(f"[HANDLER START] phone={UazapiClient._mask_phone(phone)}, message_id={message_id}, text='{message_text[:20]}...'")
         logger.info(f"Phone {UazapiClient._mask_phone(phone)} sent message: '{message_text[:50]}...'")
 
-        # Sanitize and enrich with contact name
         enriched_message = sanitize_and_enrich_message(message_text, contact_name)
 
-        # Forward to backend
         result = backend.send_message(enriched_message, phone)
 
         response_text = result.get("response", "Desculpe, nao consegui processar sua mensagem.")
 
-        # Format for WhatsApp
         formatted_response = format_for_whatsapp(response_text)
 
-        # Send reply via UAZAPI
         send_success = uazapi.send_long_message(phone, formatted_response)
 
         if not send_success:
-            # Retry with plain text if formatting caused issues
             plain_text = strip_all_formatting(response_text)
             uazapi.send_long_message(phone, plain_text)
 
@@ -538,7 +426,6 @@ def webhook():
 
 @app.route("/webhook", methods=["GET"])
 def webhook_verify():
-    """Health check / verification endpoint for UAZAPI webhook configuration."""
     return jsonify({
         "status": "active",
         "service": "cloudwalk-whatsapp-bot",
@@ -548,7 +435,6 @@ def webhook_verify():
 
 @app.route("/health", methods=["GET"])
 def health():
-    """Health check endpoint for Docker."""
     instance_status = uazapi.get_instance_status()
     return jsonify({
         "status": "healthy",
@@ -557,12 +443,7 @@ def health():
     }), 200
 
 
-# =============================================================================
-# Main Entry Point
-# =============================================================================
-
 def main():
-    """Main function to run the WhatsApp bot webhook server."""
     if not UAZAPI_API_TOKEN:
         logger.error("UAZAPI_API_TOKEN not found in environment variables!")
         logger.error("Please add it to your .env file")
@@ -587,7 +468,6 @@ def main():
     logger.info(f"Webhook Port: {WEBHOOK_PORT}")
     logger.info("=" * 60)
 
-    # Authenticate with backend
     if not backend.login():
         logger.error("Failed to authenticate with backend on startup!")
         logger.error("Make sure:")
@@ -596,7 +476,6 @@ def main():
         logger.error("3. WHATSAPP_BOT_PASSWORD in .env matches user password")
         sys.exit(1)
 
-    # Check UAZAPI instance status
     status = uazapi.get_instance_status()
     logger.info(f"UAZAPI instance status: {status}")
 
@@ -604,7 +483,6 @@ def main():
     logger.info(f"Listening on {WEBHOOK_HOST}:{WEBHOOK_PORT}")
     logger.info("Configure UAZAPI webhook URL to point to this server's /webhook endpoint")
 
-    # Run Flask server (development only; Gunicorn in production via Dockerfile)
     app.run(host=WEBHOOK_HOST, port=WEBHOOK_PORT, debug=False)
 
 

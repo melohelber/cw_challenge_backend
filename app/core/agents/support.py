@@ -4,10 +4,10 @@ from langchain_anthropic import ChatAnthropic
 from langchain.prompts import ChatPromptTemplate
 from langchain.tools import tool
 from app.core.agents.base import BaseAgent, AgentResponse
-from app.core.tools.user_lookup import user_lookup, get_user_info_description
-from app.core.tools.transaction_history import transaction_history, get_transaction_history_description
-from app.core.tools.account_status import account_status, get_account_status_description
-from app.core.tools.transfer_troubleshoot import transfer_troubleshoot, get_transfer_troubleshoot_description
+from app.core.tools.user_lookup import user_lookup
+from app.core.tools.transaction_history import transaction_history
+from app.core.tools.account_status import account_status
+from app.core.tools.transfer_troubleshoot import transfer_troubleshoot
 from app.config import settings
 from app.utils.logging import sanitize_message_for_log, mask_user_key
 
@@ -79,7 +79,6 @@ class SupportAgent(BaseAgent):
         self.logger.info(f"Processing support request for user {mask_user_key(user_key)}: {sanitize_message_for_log(message, 100)}")
 
         try:
-            # Extract conversation history from context
             history_text = context.get("history", "") if context else ""
 
             messages = [

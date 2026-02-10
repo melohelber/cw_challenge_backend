@@ -77,7 +77,6 @@ def transfer_troubleshoot(transfer_id: str) -> Dict[str, any]:
             "message": "Transfer completed successfully with no issues detected"
         }
 
-    # Mask user_key in the log if present in transfer_data
     user_key_masked = mask_user_key(transfer_data.get('user_id', '')) if transfer_data.get('user_id') else 'N/A'
     logger.warning(f"Tool [transfer_troubleshoot] issue detected for transfer: {transfer_id} (user={user_key_masked}, type={transfer_data['issue_type']})")
 
@@ -85,24 +84,3 @@ def transfer_troubleshoot(transfer_id: str) -> Dict[str, any]:
         "found": True,
         **transfer_data
     }
-
-
-def get_transfer_troubleshoot_description() -> str:
-    return """
-    Use this tool when user asks about:
-    - Why a transfer failed
-    - Transfer status (pending/failed/stuck)
-    - Problems with sending money
-    - Troubleshooting payment issues
-    - Why money hasn't arrived
-
-    Example queries:
-    - "Why did my transfer fail?"
-    - "My Pix is stuck, what happened?"
-    - "Transfer not completed"
-    - "Why can't I send money to João?"
-    - "Check transfer tx_leo_pending_001"
-
-    Input: transfer_id (string)
-    Output: Transfer diagnostics including status, issue type, description, and recommendations
-    """

@@ -44,11 +44,9 @@ class UserStore:
         return self.db.query(User).filter(User.id == user_id).first()
 
     def get_user_by_key(self, user_key: str) -> Optional[User]:
-        """Get user by public UUID key"""
         return self.db.query(User).filter(User.user_key == user_key).first()
 
     def get_user_id_from_key(self, user_key: str) -> Optional[int]:
-        """Convert public UUID to internal ID for database operations"""
         user = self.get_user_by_key(user_key)
         return user.id if user else None
 

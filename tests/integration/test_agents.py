@@ -1,13 +1,4 @@
 import pytest
-import sys
-from pathlib import Path
-
-try:
-    __import__('pysqlite3')
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-except ImportError:
-    pass
-
 from app.core.agents import RouterAgent, KnowledgeAgent, SupportAgent, SlackAgent
 from app.services.guardrails import GuardrailsService
 

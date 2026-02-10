@@ -88,7 +88,6 @@ MOCKED_TRANSACTIONS = {
 def transaction_history(user_key: str, limit: int = 5) -> Dict[str, any]:
     logger.info(f"Tool [transaction_history] called with user_key={mask_user_key(user_key)}, limit={limit}")
 
-    # For mocked data, still use user_key to lookup
     transactions = MOCKED_TRANSACTIONS.get(user_key)
 
     if transactions is None:
@@ -117,22 +116,3 @@ def transaction_history(user_key: str, limit: int = 5) -> Dict[str, any]:
         "total_amount": total_amount,
         "currency": "BRL"
     }
-
-
-def get_transaction_history_description() -> str:
-    return """
-    Use this tool when user asks about:
-    - Recent transactions
-    - Transaction history
-    - What they spent money on
-    - Payment history
-
-    Example queries:
-    - "Show my recent transactions"
-    - "What did I spend on?"
-    - "Transaction history"
-    - "Show my last 5 payments"
-
-    Input: user_key (string - UUID), limit (int, optional, default=5)
-    Output: List of recent transactions with amounts, dates, merchants
-    """

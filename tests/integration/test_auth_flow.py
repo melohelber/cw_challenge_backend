@@ -43,7 +43,7 @@ class TestAuthFlow:
         assert response.status_code == 201
         data = response.json()
         assert data["username"] == "newuser"
-        assert "id" in data
+        assert "user_key" in data
         assert "hashed_password" not in data
 
     def test_register_duplicate_user(self, client):

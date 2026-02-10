@@ -62,7 +62,7 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
         )
 
     access_token = create_access_token(data={
-        "sub": user.user_key,  # Use UUID instead of sequential ID
+        "sub": user.user_key,
         "username": user.username
     })
 

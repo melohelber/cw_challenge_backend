@@ -14,7 +14,6 @@ security = HTTPBearer()
 async def get_current_user_key(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> str:
-    """Validate JWT and return user_key (UUID)"""
     token = credentials.credentials
 
     payload = decode_access_token(token)
@@ -36,7 +35,6 @@ async def get_current_user_key(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Validate UUID format
     try:
         uuid.UUID(user_key)
     except (ValueError, AttributeError):

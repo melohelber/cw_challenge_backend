@@ -66,7 +66,6 @@ MOCKED_ACCOUNT_STATUS = {
 def account_status(user_key: str) -> Dict[str, any]:
     logger.info(f"Tool [account_status] called with user_key={mask_user_key(user_key)}")
 
-    # For mocked data, still use user_key to lookup
     status_data = MOCKED_ACCOUNT_STATUS.get(user_key)
 
     if not status_data:
@@ -83,24 +82,3 @@ def account_status(user_key: str) -> Dict[str, any]:
         "found": True,
         **status_data
     }
-
-
-def get_account_status_description() -> str:
-    return """
-    Use this tool when user asks about:
-    - Account limits (daily send/receive limits)
-    - Why they can't transfer money
-    - If account is blocked or suspended
-    - How much they can still transfer today
-    - Account restrictions
-
-    Example queries:
-    - "Why can't I send money?"
-    - "What's my daily limit?"
-    - "Is my account blocked?"
-    - "How much can I transfer today?"
-    - "Check my account status"
-
-    Input: user_key (string - UUID)
-    Output: Account status, limits, restrictions, and usage information
-    """

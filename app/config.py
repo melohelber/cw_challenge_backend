@@ -30,10 +30,9 @@ class Settings(BaseSettings):
     AGENT_TIMEOUT_SECONDS: int = 30
     CACHE_TTL_HOURS: int = 1
 
-    # Session Management
     SESSION_TIMEOUT_MINUTES: int = 5
     SESSION_CLEANUP_INTERVAL_MINUTES: int = 30
-    CONVERSATION_HISTORY_PAIRS: int = 5  # Number of message pairs (user+assistant) to include in context
+    CONVERSATION_HISTORY_PAIRS: int = 5
 
     TELEGRAM_BOT_TOKEN: str = ""
     BOT_PASSWORD: str = ""

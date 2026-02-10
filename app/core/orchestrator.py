@@ -25,9 +25,6 @@ class AgentOrchestrator:
         self.slack = SlackAgent()
 
     async def process_message(self, message: str, user_key: str, db: Session) -> Dict[str, Any]:
-        """Process message with user_key (UUID) instead of user_id"""
-
-        # Convert user_key → user_id internally for DB operations
         user_store = UserStore(db)
         user_id = user_store.get_user_id_from_key(user_key)
 
@@ -37,14 +34,12 @@ class AgentOrchestrator:
 
         logger.info(f"Processing message for user {mask_user_key(user_key)}: {sanitize_message_for_log(message, 100)}")
 
-        # Session Management: Get or create active session
         session_service = SessionService(db)
         conversation_service = ConversationService(db)
 
         session = session_service.get_or_create_active_session(user_id)
         session_id = session.session_id
 
-        # Retrieve conversation history for this session
         history_formatted = conversation_service.format_history_for_prompt(session_id)
 
         logger.info(f"Session {session_id[:8]}... | History length: {len(history_formatted)} chars")
@@ -131,14 +126,13 @@ class AgentOrchestrator:
 
         self._save_conversation(
             db=db,
-            session_id=session_id,  # Add session_id
-            user_id=user_id,  # Internal user_id for database
+            session_id=session_id,
+            user_id=user_id,
             message=message,
             response=response_text,
             agent_used=agent_used
         )
 
-        # Update session activity after successful processing
         session_service.update_session_activity(session_id)
 
         return {
@@ -147,7 +141,7 @@ class AgentOrchestrator:
             "confidence": routing_result.metadata.get("confidence"),
             "metadata": {
                 **metadata,
-                "session_id": session_id[:8] + "..."  # Include masked session_id in response
+                "session_id": session_id[:8] + "..."
             }
         }
 

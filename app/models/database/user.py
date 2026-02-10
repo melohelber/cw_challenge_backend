@@ -8,10 +8,8 @@ from app.core.database import Base
 class User(Base):
     __tablename__ = "users"
 
-    # Internal primary key (not exposed externally)
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
 
-    # Public identifier (UUID v4) - used in JWT and API responses
     user_key = Column(
         String(36),
         unique=True,

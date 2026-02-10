@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""
-Telegram Bot Connector for CloudWalk Agent Swarm
-
-Connects Telegram bot to FastAPI backend using JWT authentication.
-Bot acts as a channel-agnostic connector - backend doesn't know messages come from Telegram.
-"""
 
 import os
 import sys
@@ -38,7 +32,6 @@ processed_message_ids = set()
 
 
 class BackendClient:
-    """Handles communication with FastAPI backend including JWT authentication."""
 
     def __init__(self):
         self.backend_url = BACKEND_URL
@@ -48,7 +41,6 @@ class BackendClient:
         self.token_expires_at: Optional[datetime] = None
 
     def login(self) -> bool:
-        """Login to backend and get JWT token."""
         try:
             response = requests.post(
                 f"{self.backend_url}/auth/login",
@@ -71,7 +63,6 @@ class BackendClient:
             return False
 
     def ensure_authenticated(self) -> bool:
-        """Ensure bot is authenticated, renew token if needed."""
         if not self.jwt_token or not self.token_expires_at:
             logger.info("No token found, logging in...")
             return self.login()
@@ -83,7 +74,6 @@ class BackendClient:
         return True
 
     def send_message(self, message: str, telegram_user_id: str) -> dict:
-        """Send message to backend /chat endpoint."""
         if not self.ensure_authenticated():
             return {
                 "response": "Desculpe, estou com problemas de conexão com o servidor. Tente novamente em instantes.",
@@ -127,9 +117,6 @@ backend = BackendClient()
 
 
 def format_for_telegram(text: str) -> str:
-    """
-    Convert Claude Markdown to Telegram Markdown format.
-    """
     text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
     text = re.sub(r'\*\*(.*?)\*\*', r'*\1*', text)
     text = re.sub(r'__(.*?)__', r'_\1_', text)
@@ -137,10 +124,6 @@ def format_for_telegram(text: str) -> str:
 
 
 def strip_all_markdown(text: str) -> str:
-    """
-    Remove ALL Markdown and HTML formatting if Telegram parsing fails.
-    This prevents asterisks, underscores, and HTML tags from appearing in plain text.
-    """
     text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
     text = re.sub(r'<b>(.*?)</b>', r'\1', text)
     text = re.sub(r'<i>(.*?)</i>', r'\1', text)
@@ -156,12 +139,6 @@ def strip_all_markdown(text: str) -> str:
 
 
 def sanitize_and_enrich_message(message: str, user_first_name: str) -> str:
-    """
-    Sanitize message to prevent name injection attacks and append real user first name.
-
-    This protects against users trying to manipulate the system by injecting fake names.
-    The model will always see the REAL first name at the end.
-    """
     clean_message = re.sub(
         r'\[User\'?s?\s+real\s+first\s+name\s+is:.*?\]',
         '',
@@ -175,7 +152,6 @@ def sanitize_and_enrich_message(message: str, user_first_name: str) -> str:
 
 
 async def send_welcome_message(update: Update):
-    """Send welcome message to user."""
     user = update.effective_user
     welcome_message = (
         f"Olá, {user.first_name}! 👋\n\n"
@@ -190,7 +166,6 @@ async def send_welcome_message(update: Update):
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command."""
     user = update.effective_user
     logger.info(f"User [telegram_{user.id}] started bot - {user.first_name}")
 
@@ -200,7 +175,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /help command."""
     user = update.effective_user
     logger.info(f"User [telegram_{user.id}] requested help")
 
@@ -219,7 +193,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle incoming text messages."""
     user = update.effective_user
     message_id = update.message.message_id
     message_text = update.message.text
@@ -276,12 +249,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle errors in the bot."""
     logger.error(f"Update {update} caused error {context.error}")
 
 
 def main():
-    """Main function to run the bot."""
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN not found in environment variables!")
         logger.error("Please add it to your .env file")
