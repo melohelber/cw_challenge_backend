@@ -37,6 +37,33 @@ async def lifespan(app: FastAPI):
         logger.error(f"Database initialization failed: {e}")
         raise
 
+    try:
+        from app.services.vector_store import VectorStoreService
+        vs = VectorStoreService()
+        doc_count = vs.count()
+        if doc_count == 0:
+            logger.info("Vector store is empty, auto-populating with InfinitePay content...")
+            from app.services.web_scraper import WebScraper
+            from app.services.text_chunker import TextChunker
+
+            scraper = WebScraper(timeout=30)
+            pages = scraper.scrape_all()
+            if pages:
+                chunker = TextChunker(chunk_size=500, overlap=50)
+                all_chunks = []
+                for page in pages:
+                    metadata = {"url": page["url"], "title": page["title"], "source": "infinitepay_website"}
+                    chunks = chunker.chunk_text(page["content"], metadata)
+                    all_chunks.extend(chunks)
+                vs.add_documents(all_chunks)
+                logger.info(f"Vector store populated: {len(pages)} pages, {len(all_chunks)} chunks")
+            else:
+                logger.warning("Failed to scrape InfinitePay website, vector store remains empty")
+        else:
+            logger.info(f"Vector store already populated: {doc_count} documents")
+    except Exception as e:
+        logger.error(f"Vector store initialization error: {e} (RAG will be unavailable)")
+
     logger.info("=" * 60)
     logger.info("Application started successfully!")
     logger.info(f"API Documentation: http://localhost:8000/docs")
