@@ -262,6 +262,65 @@ ANTHROPIC_MODEL=claude-opus-4-6
 
 ---
 
+## 📡 Messaging Connectors: Telegram & WhatsApp
+
+The system supports **two messaging channels** through independent connectors in the `connectors/` directory. Both follow the same pattern: authenticate with the backend via JWT, forward messages to `/chat`, and return responses to the user.
+
+### Architecture: Polling vs Webhook
+
+The two connectors use fundamentally different approaches to receive messages:
+
+```
+TELEGRAM (Polling - Pull)              WHATSAPP/UAZAPI (Webhook - Push)
+
+Our bot asks Telegram:                 UAZAPI sends to our server:
+"Any new messages?"                    POST /webhook
+    ↕                                      ↓
+Telegram responds with messages        Flask server receives & processes
+    ↕                                      ↓
+No public URL needed                   Needs public URL (ngrok for dev)
+```
+
+**Telegram** uses `python-telegram-bot` library which handles polling automatically. Our bot pulls messages from Telegram's servers. Works behind any firewall.
+
+**WhatsApp (UAZAPI)** pushes messages to our Flask webhook server on port 5001. UAZAPI needs a URL to deliver messages to, which means:
+- **Development:** Use `ngrok http 5001` to create a temporary public URL
+- **Production:** The deployed service already has a public URL
+
+### Connector Comparison
+
+| Aspect | Telegram | WhatsApp (UAZAPI) |
+|--------|----------|-------------------|
+| Message reception | Polling (library) | Webhook (HTTP POST) |
+| Own HTTP server | Not needed | Flask + Gunicorn (port 5001) |
+| User identifier | `telegram_{user_id}` | `whatsapp_{phone}` |
+| API auth | Bot token (library) | Header `apikey` |
+| Public URL | Not needed | Required for webhook |
+| SDK/Library | `python-telegram-bot` | Pure REST (`requests`) |
+| Media messages | Text only | Rejects politely |
+| Group messages | Not received | Received but ignored |
+
+### Docker Services
+
+```yaml
+# docker-compose.yml
+services:
+  backend:          # FastAPI - port 8000
+  telegram-bot:     # Polls Telegram - no port exposed
+  whatsapp-bot:     # Flask webhook - port 5001
+```
+
+### WhatsApp Setup (UAZAPI)
+
+1. Create account at https://uazapi.dev
+2. Create instance, connect WhatsApp number (QR code)
+3. Copy **API Token** and **Instance ID** to `.env`
+4. Register `whatsapp_bot` user in backend
+5. Configure webhook URL in UAZAPI dashboard
+6. See `WHATSAPP_FOUNDATION.md` for full step-by-step guide
+
+---
+
 ## 📊 Project Structure
 
 ```
@@ -298,6 +357,11 @@ cw_challenge_backend/
 │   │   └── exceptions.py
 │   ├── config.py            # Settings (Pydantic)
 │   └── main.py              # FastAPI app
+├── connectors/              # Messaging platform connectors
+│   ├── telegram_bot.py      # Telegram (polling)
+│   ├── whatsapp_bot.py      # WhatsApp via UAZAPI (webhook)
+│   ├── Dockerfile           # Telegram bot container
+│   └── whatsapp_Dockerfile  # WhatsApp bot container
 ├── tests/
 │   ├── unit/
 │   └── integration/
@@ -318,6 +382,8 @@ cw_challenge_backend/
 ✅ **JWT Authentication** - Secure, token-based auth
 ✅ **Guardrails** - Content moderation for inappropriate requests
 ✅ **Conversation History** - SQLite database storage
+✅ **Telegram Bot** - Channel-agnostic connector via polling
+✅ **WhatsApp Bot** - Channel-agnostic connector via UAZAPI webhook
 ✅ **Docker Ready** - One command deployment
 ✅ **Postman Collection** - Auto JWT + test requests
 
@@ -356,7 +422,8 @@ Estimated response: 15 minutes"
 ## 📚 Documentation
 
 - **FOUNDATION.md** - Complete project specification
-- **SETUP.md** - Detailed setup instructions
+- **FINAL_FOUNDATION.md** - Security & session improvements
+- **WHATSAPP_FOUNDATION.md** - WhatsApp integration guide (Polling vs Webhook, UAZAPI setup, manual steps)
 - **Postman Collection** - API testing guide
 
 ---

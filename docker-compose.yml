@@ -38,5 +38,21 @@ services:
       - BACKEND_URL=http://backend:8000
     restart: unless-stopped
 
+  whatsapp-bot:
+    build:
+      context: .
+      dockerfile: connectors/whatsapp_Dockerfile
+    container_name: cloudwalk_whatsapp_bot
+    ports:
+      - "5001:5001"
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - BACKEND_URL=http://backend:8000
+    restart: unless-stopped
+
 volumes:
   data:
