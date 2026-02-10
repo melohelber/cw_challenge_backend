@@ -204,7 +204,7 @@ class BackendClient:
     def send_message(self, message: str, whatsapp_phone: str) -> dict:
         if not self.ensure_authenticated():
             return {
-                "response": "Desculpe, estou com problemas de conexao com o servidor. Tente novamente em instantes.",
+                "response": "Desculpe, estou com problemas de conexão com o servidor. Tente novamente em instantes.",
                 "error": "authentication_failed"
             }
 
