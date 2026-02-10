@@ -25,7 +25,7 @@ class VectorStoreService:
             self.collection = self.client.create_collection(
                 name=collection_name,
                 embedding_function=self.embedding_function,
-                metadata={"description": "InfinitePay knowledge base for RAG"}
+                metadata={"hnsw:space": "cosine"}
             )
             logger.info(f"Created new collection: {collection_name}")
 
@@ -81,7 +81,8 @@ class VectorStoreService:
         self.client.delete_collection(self.collection_name)
         self.collection = self.client.create_collection(
             name=self.collection_name,
-            embedding_function=self.embedding_function
+            embedding_function=self.embedding_function,
+            metadata={"hnsw:space": "cosine"}
         )
         logger.info("Collection cleared")
 

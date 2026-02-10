@@ -115,6 +115,79 @@ Router: GENERAL → Knowledge Agent → Tavily web search directly
 **Conversational Messages:**
 Simple greetings like "Oi", "Tudo bem?" skip web search entirely and let the AI respond naturally, saving Tavily API credits.
 
+### RAG Deep Dive: How Vector Search Works
+
+The RAG system converts text into numerical vectors (embeddings) and finds similar documents by comparing these vectors. Here's how each component works:
+
+#### Sentence Transformers (Embedding Model)
+
+The model `all-MiniLM-L6-v2` transforms text into vectors of 384 numbers. Sentences with **similar meaning** produce **similar vectors**:
+
+```
+"Qual a taxa do Pix?"  → [0.12, -0.45, 0.78, ...] (384 numbers)
+"Pix tem taxa zero"    → [0.11, -0.42, 0.75, ...] (384 numbers)  ← similar!
+"Eu gosto de pizza"    → [0.89, 0.12, -0.56, ...] (384 numbers)  ← different
+```
+
+This is how the system finds relevant documents — it compares the vector of your question against the vectors of all stored document chunks.
+
+#### Distance Metrics: How Similarity is Measured
+
+To compare two vectors, we need a **distance metric**. Small distance = similar texts, large distance = different texts.
+
+Since `all-MiniLM-L6-v2` produces **normalized vectors** (length = 1), both metrics range from 0 to 2. The difference is in how they distribute values:
+
+**Euclidean (L2) Distance** — measures straight-line distance in space:
+```
+- For normalized vectors: L2 = √(2 × cosine_distance)
+- The square root amplifies mid-range values
+- Moderately similar texts get pushed past the score filter threshold
+```
+
+**Cosine Distance** — measures the angle between two vectors:
+```
+- Directly measures angular difference: cosine_dist = 1 - cos(θ)
+- Values stay compact for related content
+- Matches how the model was trained (cosine similarity objective)
+```
+
+The key insight — for the **same pair of vectors**, L2 amplifies the distance:
+```
+cosine_dist = 0.30  →  L2 = √(0.60) = 0.77  →  score_L2 = 0.23 ✅  score_cos = 0.70 ✅
+cosine_dist = 0.50  →  L2 = √(1.00) = 1.00  →  score_L2 = 0.00 ⚠️  score_cos = 0.50 ✅
+cosine_dist = 0.53  →  L2 = √(1.06) = 1.03  →  score_L2 =-0.03 ❌  score_cos = 0.47 ✅
+cosine_dist = 0.65  →  L2 = √(1.30) = 1.14  →  score_L2 =-0.14 ❌  score_cos = 0.35 ✅
+
+Score = 1 - distance, filtered at score >= 0
+```
+
+#### Why Cosine for Sentence Transformers?
+
+The `all-MiniLM-L6-v2` model was **trained using cosine similarity** as its objective function ([source](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)). Using a different metric means measuring something the model wasn't optimized for.
+
+The model produces normalized vectors (length = 1), so only the **direction** matters, not the magnitude — exactly what cosine measures. Think of it like a compass: the needle's length doesn't matter, only where it points.
+
+**Configuration:** ChromaDB is configured with `hnsw:space: cosine` to match the model's training objective.
+
+#### Populating the Vector Store
+
+The `scripts/populate_vectorstore.py` script handles the full RAG pipeline:
+
+```
+Step 1: Scrape InfinitePay website (18 pages)
+    ↓
+Step 2: Chunk text into 500-char pieces (50-char overlap)
+    ↓
+Step 3: Generate embeddings and store in ChromaDB
+    ↓
+Result: 357 searchable document chunks
+```
+
+Run inside Docker:
+```bash
+docker exec cloudwalk_backend python scripts/populate_vectorstore.py
+```
+
 ---
 
 ## 🛠️ Support Agent Tools (Mocked)
