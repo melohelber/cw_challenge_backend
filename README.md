@@ -163,7 +163,11 @@ Score = 1 - distance, filtered at score >= 0
 
 #### Why Cosine for Sentence Transformers?
 
-The `all-MiniLM-L6-v2` model was **trained using cosine similarity** as its objective function ([source](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)). Using a different metric means measuring something the model wasn't optimized for.
+The `all-MiniLM-L6-v2` model was **trained using cosine similarity** as its objective function. From the [official model documentation](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2):
+
+> *"We fine-tune the model using a contrastive objective. Formally, we compute the cosine similarity from each possible sentence pairs from the batch."*
+
+Using a different distance metric means measuring something the model wasn't optimized for.
 
 The model produces normalized vectors (length = 1), so only the **direction** matters, not the magnitude — exactly what cosine measures. Think of it like a compass: the needle's length doesn't matter, only where it points.
 
